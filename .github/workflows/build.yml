@@ -88,7 +88,7 @@ jobs:
           prerelease: false
           release_name: $PRODUCT-NAME-$BUILD-TYPE-${{ github.actor }}
           tag_name: ${{ github.ref }}
-          body_path: CHANGELOG.md
+          body_path: out/error.log
         env:
           GITHUB_TOKEN: ${{ github.token }}
       
