@@ -1,0 +1,123 @@
+name: Start build
+on:
+  pull_request:
+    types: [opened]
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Clone Manifest, Start Build
+    runs-on: self-hosted
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    env:
+      WORKING_DIR: "your_working_dir"
+      ROM_NAME: "your_rom_name"
+      LOCAL_MANIFEST: "your_local_manifest_link"
+      LOCAL_MANIFEST_BRANCH: "your_local_manifest_branch"
+      DEVICE_NAME: "device_codename"
+      LUNCH_NAME: "lunch_type"
+      ROM_MANIFEST_LINK: "your_rom_manifest_link"
+      ROM_MANIFEST_BRANCH: "your_rom_manifest_branch"
+      ANDROID_VERSION: "your_android_version"
+      TELEGRAM_USERNAME: "your_telegram_username"
+      GITHUB_UNAME: "your_github_username"
+      BUILD_TYPE: "your_preffered_build_type" # or choose from 'eng', 'userdebug', 'user'
+      
+    steps:
+      - name: Check-out to repository
+        uses: actions/checkout@v4
+
+      - name: Notify to telegram
+        run: |
+          text="Build has been started by $TELEGRAM_USERNAME($DEVICE_NAME) !
+          ROM Name: $ROM_NAME
+          ROM Branch: $ROM_MANIFEST_BRANCH
+          Build Type: $BUILD_TYPE
+          Android Version: $ANDROID_VERSION
+          Job link: https://github.com/AOSP-Builders/ROM-Compiler/actions/runs/${{ github.run_id }}"
+          curl -s "https://api.telegram.org/bot5635044382:AAHO51tSZqRYUiHw8IB4VUJjNpbeqVQm-Uk/sendmessage" -d "chat_id=-1001803186438" -d "text=$text"
+
+      - name: Set-up workspace environment
+        run: |
+          mkdir $WORKING_DIR
+          cd $WORKING_DIR
+          neofetch
+        continue-on-error: true
+
+      - name: Set-up 'git' credential(s)
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          
+      - name: Clone local manifest
+        run: |
+          rm -rf .repo/local_manifests 
+          git clone $LOCAL_MANIFEST -b $LOCAL_MANIFEST_BRANCH .repo/local_manifests
+        continue-on-error: false
+
+      - name: Start syncing the repository 
+        run: |
+          repo init -u $ROM_MANIFEST_LINK -b $ROM_MANIFEST_BRANCH 
+          repo sync -c -j$(nproc --all) --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync 
+        continue-on-error: true
+
+      - name: Execute if the job is cancelled
+        if: ${{ cancelled() || github.event.pull_request.merged == 'true' || github.event_name == 'closed'}}
+        run: |
+          cd 
+          pwd 
+          cd actions-runner 
+          cd work 
+          rm -rf ROM-Compiler
+
+      - name: Start compilation
+        run: |
+          . build/envsetup.sh
+          lunch $PRODUCT_NAME-$BUILD_TYPE
+          mka bacon
+        continue-on-error: false
+      
+      
+      - name: Upload error log to repository's releases page if build fails
+        if: failure()
+        run: |
+          curl -F "file=@out/error.log" https://temp.sh/upload | tee link.txt && echo " "
+          echo " "
+          echo "============================"
+          echo "Error log Uploaded!"
+          echo "Please see the link Below-  "
+          echo "----------------------------"
+          cat link.txt && echo " "
+          echo "============================"
+        continue-on-error: false
+
+      - name: Cleanup directory
+        if: failure()
+        run: |
+          pwd
+          cd
+          cd actions-runner
+          cd work
+          rm -rf ROM-Compiler 
+
+
+      - name: Upload to repository's releases page if 
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            out/target/product/$DEVICE_NAME/recovery.img
+            out/target/product/$DEVICE_NAME/boot.img
+            out/target/product/$DEVICE_NAME/vendor_boot.img
+            out/target/product/$DEVICE_NAME/vendor.img
+            out/target/product/$DEVICE_NAME/system.img
+            out/target/product/$DEVICE_NAME/*.zip
+          name: $LUNCH_NAME-$BUILD_TYPE
+          tag_name: ${{ github.run_id }}
+          body: |
+            Target: $LUNCH_NAME-$BUILD_TYPE
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  
