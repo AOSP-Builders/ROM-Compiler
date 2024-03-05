@@ -79,19 +79,30 @@ jobs:
           mka bacon
         continue-on-error: false
       
-      
-      - name: Upload error log to repository's releases page if build fails
+      - name: Create release for error.log
         if: failure()
-        run: |
-          curl -F "file=@out/error.log" https://temp.sh/upload | tee link.txt && echo " "
-          echo " "
-          echo "============================"
-          echo "Error log Uploaded!"
-          echo "Please see the link Below-  "
-          echo "----------------------------"
-          cat link.txt && echo " "
-          echo "============================"
-        continue-on-error: false
+        uses: actions/create-release@v1
+        id: create_release
+        with:
+          draft: false
+          prerelease: false
+          release_name: $PRODUCT-NAME-$BUILD-TYPE-${{ github.actor }}
+          tag_name: ${{ github.ref }}
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      
+      - name: Upload error.log to releases
+        if: failure()
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: out/error.log
+          asset_name: error.log
+          asset_content_type: text/plain
+        continue-on-error: true
 
       - name: Cleanup directory
         if: failure()
@@ -101,7 +112,6 @@ jobs:
           cd actions-runner
           cd work
           rm -rf ROM-Compiler 
-
 
       - name: Upload to repository's releases page if 
         uses: softprops/action-gh-release@v1
