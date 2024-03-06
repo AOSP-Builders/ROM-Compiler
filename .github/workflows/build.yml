@@ -79,30 +79,13 @@ jobs:
           mka bacon
         continue-on-error: false
       
-      - name: Create release for error.log
+      - name: Upload Artifact
         if: failure()
-        uses: actions/create-release@v1
-        id: create_release
+        id: upload_artifact
+        uses: actions/upload-artifact@v2
         with:
-          draft: false
-          prerelease: false
-          release_name: $PRODUCT-NAME-$BUILD-TYPE-${{ github.actor }}
-          tag_name: ${{ github.ref }}
-          body_path: out/error.log
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-      
-      - name: Upload error.log to releases
-        if: failure()
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: out/error.log
-          asset_name: error.log
-          asset_content_type: text/plain
-        continue-on-error: true
+          name: error.log  
+          path: out/error.log
 
       - name: Cleanup directory
         if: failure()
@@ -128,6 +111,6 @@ jobs:
           body: |
             Target: $LUNCH_NAME-$BUILD_TYPE
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONALAT }}
 
   
