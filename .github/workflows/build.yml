@@ -83,30 +83,28 @@ jobs:
           mka bacon
         continue-on-error: false
       
-      - name: Create release for error.log
+      - name: Create Release
         if: failure()
-        uses: actions/create-release@v1
         id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Make sure this token has appropriate permissions
         with:
+          tag_name: v${{ github.run_number }}  # You can use run number or version number from your project
+          release_name: Release ${{ github.run_number }}  # Customize release name as needed
+          body: |
+            Release created by GitHub Actions
           draft: false
           prerelease: false
-          release_name: $PRODUCT-NAME-$BUILD-TYPE-${{ github.actor }}
-          tag_name: ${{ github.ref }}
-          body_path: out/error.log
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+
       
-      - name: Upload error.log to releases
+      - name: Upload Artifact
         if: failure()
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        id: upload_artifact
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: out/error.log
-          asset_name: error.log
-          asset_content_type: text/plain
-        continue-on-error: true
+          name: error.log  # Replace with your artifact name
+          path: out/error.log
 
       - name: Cleanup directory
         if: failure()
