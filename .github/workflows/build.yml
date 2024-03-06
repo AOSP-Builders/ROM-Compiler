@@ -12,18 +12,17 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
     env:
-      WORKING_DIR: "your_working_dir"
-      ROM_NAME: "your_rom_name"
-      LOCAL_MANIFEST: "your_local_manifest_link"
-      LOCAL_MANIFEST_BRANCH: "your_local_manifest_branch"
-      DEVICE_NAME: "device_codename"
-      LUNCH_NAME: "lunch_type"
-      ROM_MANIFEST_LINK: "your_rom_manifest_link"
-      ROM_MANIFEST_BRANCH: "your_rom_manifest_branch"
-      ANDROID_VERSION: "your_android_version"
-      TELEGRAM_USERNAME: "your_telegram_username"
-      GITHUB_UNAME: "your_github_username"
-      BUILD_TYPE: "your_preffered_build_type" # or choose from 'eng', 'userdebug', 'user'
+      WORKING_DIR: "los"
+      ROM_NAME: "LineageOS"
+      LOCAL_MANIFEST: "https://github.com/eartinityop/local_manifest"
+      LOCAL_MANIFEST_BRANCH: "lineage"
+      DEVICE_NAME: "r5x"
+      PRODUCT_NAME: "lineage_r5x"
+      ROM_MANIFEST_LINK: "https://github.com/LineageOS/android"
+      ROM_MANIFEST_BRANCH: "lineage-20.0"
+      ANDROID_VERSION: "13"
+      TELEGRAM_USERNAME: "@Eartinity_AFK"
+      BUILD_TYPE: "userdebug" # or choose from 'eng', 'userdebug', 'user'
       
     steps:
       - name: Check-out to repository
@@ -63,6 +62,11 @@ jobs:
           repo sync -c -j$(nproc --all) --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync 
         continue-on-error: true
 
+      - name: Clone failed repository(s) manually
+        run: |
+          rm -rf external/chromium-webview
+          git clone https://android.googlesource.com/platform/external/chromium-webview -b android-13.0.0_r75 external/chromium-webview
+
       - name: Execute if the job is cancelled
         if: ${{ cancelled() || github.event.pull_request.merged == 'true' || github.event_name == 'closed'}}
         run: |
@@ -79,30 +83,28 @@ jobs:
           mka bacon
         continue-on-error: false
       
-      - name: Create release for error.log
+      - name: Create Release
         if: failure()
-        uses: actions/create-release@v1
         id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Make sure this token has appropriate permissions
         with:
+          tag_name: v${{ github.run_number }}  # You can use run number or version number from your project
+          release_name: Release ${{ github.run_number }}  # Customize release name as needed
+          body: |
+            Release created by GitHub Actions
           draft: false
           prerelease: false
-          release_name: $PRODUCT-NAME-$BUILD-TYPE-${{ github.actor }}
-          tag_name: ${{ github.ref }}
-          body_path: out/error.log
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+
       
-      - name: Upload error.log to releases
+      - name: Upload Artifact
         if: failure()
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        id: upload_artifact
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: out/error.log
-          asset_name: error.log
-          asset_content_type: text/plain
-        continue-on-error: true
+          name: error.log  # Replace with your artifact name
+          path: out/error.log
 
       - name: Cleanup directory
         if: failure()
