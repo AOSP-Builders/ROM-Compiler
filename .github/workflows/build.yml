@@ -62,6 +62,11 @@ jobs:
           repo sync -c -j$(nproc --all) --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync 
         continue-on-error: true
 
+      - name: Clone failed repository(s) manually
+        run: |
+          rm -rf external/chromium-webview
+          git clone https://android.googlesource.com/platform/external/chromium-webview -b android-13.0.0_r75 external/chromium-webview
+
       - name: Execute if the job is cancelled
         if: ${{ cancelled() || github.event.pull_request.merged == 'true' || github.event_name == 'closed'}}
         run: |
