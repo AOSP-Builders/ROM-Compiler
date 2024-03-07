@@ -1,42 +1,31 @@
-jobs:
-  comment:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.merged != true }}
-    steps:
-      - uses: actions/github-script@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
-        with:
-          script: |
-            const workflowIds = [
-              '.github/workflows/build.yml',
-            ];
+name: Cancel Workflow on PR Close
 
-            for (const workflowId of workflowIds) {
-              const workflowRuns = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: workflowId,
-                per_page: 100,
-                event: 'pull_request',
-                branch: context.payload.pull_request.head.ref,
-              });
-            
-              const activeRuns = workflowRuns.data.workflow_runs.filter((workflowRun) => {
-                return workflowRun.status === 'queued' || workflowRun.status === 'in_progress';
-              });
-            
-              for (const activeRun of activeRuns) {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  run_id: activeRun.id,
-                });
-              }
-            }
-name: Cancel workflows on PR close
 on:
   pull_request:
-    types:
-      - closed
+    types: [closed]
+
+jobs:
+  cancel_workflow:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check if PR is closed
+        uses: actions/github-script@v4
+        with:
+          github-token: ${{ secrets.PERSONALAT }}
+          script: |
+            const prState = context.payload.pull_request.state;
+            if (prState === 'closed') {
+              console.log('PR is closed');
+              // Use GitHub REST API to cancel workflow run associated with this PR
+              const response = await octokit.actions.cancelWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: github.run_id
+              });
+              console.log(response.data);
+            } else {
+              console.log('PR is not closed');
+            }
+
 # Credit to https://stackoverflow.com/a/76318991/22527164
