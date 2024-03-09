@@ -14,10 +14,12 @@ env:
 task:
   name: "Setting Up, Syncing, Building and Uploading..."
   timeout_in: 240m  
-  container:
-      image: ubuntu:latest
-      cpu: 224
-      memory: 452G
+  persistent_worker:
+    isolation:
+      container:
+        image: ubuntu:latest
+        cpu: 224
+        memory: 450G
 
   
   Sync_script:
