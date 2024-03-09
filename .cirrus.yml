@@ -1,0 +1,68 @@
+env:
+    MANIFEST_LINK: your_rom_manifest
+    MANIFEST_BRANCH: rom_manifest_branch
+    ROM_NAME: your_rom_name
+    DEVICE: device_codename
+    LOCAL_MANIFEST_LINK: your_local_manifest_link
+    LOCAL_MANIFEST_BRANCH: your_local_manifest_branch
+    EXTRA_CMD: extra_command_before_starting_compilation
+    LUNCH_COMBO: lunch_command
+    BUILD_TYPE: your_preffered_build_type
+    TELEGRAM_USERNAME: your_tg_username
+    ANDROID_VERSION: android_version
+
+task:
+  name: "Setting Up, Syncing, Building and Uploading..."
+  timeout_in: 240m  
+  container:
+      image: ubuntu:latest
+      cpu: 224
+      memory: 452G
+
+  
+  Sync_script:
+      - echo "============================"
+      - echo "Syncing The Sources..."
+      - echo "============================"
+      - mkdir -p ~/work
+      - cd ~/work
+      - git clone "$LOCAL_MANIFEST_LINK" -b "$LOCAL_MANIFEST_BRANCH" .repo/local_manifests
+      - repo init --depth=1 -u "$MANIFEST" -b "MANIFEST_BRANCH"
+      - repo sync -j$(nproc --all) --force-sync --no-tags --no-clone-bundle
+      - echo "============================"
+      - echo "Syncing Complete!"
+      - echo "============================"
+
+  Build_script:
+      - echo "============================"
+      - echo "Starting the Build..."
+      - echo "============================"
+      - cd
+      - cd ~/work
+      - $EXTRA_CMD
+      - export USE_CCACHE=1
+      - export CCACHE_EXEC=/usr/bin/ccache
+      - ccache -M 50G
+      - . build/envsetup.sh
+      - lunch "$LUNCH_COMBO"-"$BUILD_TYPE"
+      - mka $TARGET
+     
+  Upload_script:
+      - echo "============================"
+      - echo "Uploading the Build..."
+      - echo "============================"
+      - cd 
+      - cd /work
+      - cd out/target/product/"$DEVICE"
+      - ls
+      - pwd
+      - chmod 777 *
+      - curl --upload-file *.zip https://transfer.sh | tee link.txt && echo " "
+      - echo " "
+      - echo "============================"
+      - echo "Build Uploaded!"
+      - echo "Please see the link Below-  "
+      - echo "----------------------------"
+      - cat link.txt && echo " "
+      - echo "============================"
+        
